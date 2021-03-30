@@ -1,0 +1,62 @@
+// Function to mask clouds using the quality band of Landsat 8.
+var maskL8 = function(image) {
+  var qa = image.select('BQA');
+  /// Check that the cloud bit is off.
+  var mask = qa.bitwiseAnd(1 << 4).eq(0);
+  return image.updateMask(mask);
+}
+
+// Map the function over a year of Landsat 8 TOA data and take the median.
+var composite = L8
+    .filterDate('2020-01-01', '2020-12-31')
+    .filterBounds(roi)
+    .map(maskL8)
+    .median();
+
+var roicomposite = composite.clip(roi);
+
+// Display the results in a cloudy place.
+Map.addLayer(roicomposite);
+
+
+// Compute the Normalized Difference Vegetation Index (NDVI) (cara 1).
+var nir = roicomposite.select('B5');
+var red = roicomposite.select('B4');
+var ndvi = nir.subtract(red).divide(nir.add(red)).rename('NDVI');
+
+// Display the result (cara 1)
+Map.addLayer(ndvi, {min: -1, max: 1, palette:['blue', 'white', 'green']}, 'NDVI image');
+
+// Menghitung dan menampilkan NDVI (cara 2)
+var ndvi2 = roicomposite.normalizedDifference(['B5', 'B4']).rename('NDVI2');
+Map.addLayer(ndvi, {min: -1, max: 1, palette:['blue', 'white', 'green']}, 'NDVI image 2');
+
+// ====== Dibandingkan tahun 2014 ======
+var composite14 = L8
+    .filterDate('2014-01-01', '2014-12-31')
+    .filterBounds(roi)
+    .map(maskL8)
+    .median();
+
+var roicomposite14 = composite14.clip(roi);
+
+// Display the results in a cloudy place.
+Map.addLayer(roicomposite14);
+
+
+// Compute the Normalized Difference Vegetation Index (NDVI).
+var nir = roicomposite14.select('B5');
+var red = roicomposite14.select('B4');
+// var ndvi = nir.subtract(red).divide(nir.add(red)).rename('NDVI');
+var ndvi = roicomposite14.normalizedDifference(['B5', 'B4']).rename('NDVI');
+
+// Display the result
+Map.addLayer(ndvi, {min: -1, max: 1, palette:['blue', 'white', 'green']}, 'NDVI image 2014');
+
+//export map
+Export.image.toDrive({
+  image: ndvi,
+  fileNamePrefix:"ndvi",
+  region: roi,
+  scale: 30
+})
